@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" width="140" height="36" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+	<mx:Script>
+		<![CDATA[
+			[Bindable]
+			public var PageNum:int;
+			[Bindable]
+			public var content:String;
+		]]>
+	</mx:Script>
+	<mx:Image source="@Embed('assets/icon1.jpg')" width="10" height="30"/>
+	<mx:Label text="{this.content+this.PageNum}" width="100%"/> 
+</mx:HBox>

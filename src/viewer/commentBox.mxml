@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="550" height="208">
+	<mx:Script>
+		<![CDATA[
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			public var commentId:int;
+			public var delete_url:String;
+			public function onDelete():void
+			{
+				var comment_service:HTTPService=new HTTPService();
+				//comment_service.url=host+"/Timeebo/getBookCommet.php";
+				comment_service.url=delete_url;
+				comment_service.method="Get";
+				comment_service.resultFormat="e4x";
+				comment_service.showBusyCursor=true;
+				comment_service.addEventListener(ResultEvent.RESULT,commentResultHandle);
+				comment_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var commentArgs:Object=new Object();
+				commentArgs["commentId"]=1;
+				comment_service.send(commentArgs);
+			}
+			private function commentResultHandle(e:ResultEvent):void
+			{
+				this.parent.removeChild(this);
+			}
+			private function faultHandle(e:FaultEvent):void
+			{
+				Alert.show("erro"+e.message);
+			}
+		]]>
+	</mx:Script>
+	<mx:Label id="commentTitle" x="34" y="19" width="402" height="31"/>
+	<mx:TextArea editable="false" id="commentContent" x="34" y="58" width="475" height="140"/>
+	<mx:Button x="444" y="28" label="删除" click="onDelete()"/>
+	
+</mx:Canvas>

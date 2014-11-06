@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:view="viewer.*" height="100%" width="100%" layout="absolute" creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.XMLListCollection;
+			import mx.events.ScrollEvent;
+			import mx.events.FlexEvent;
+			import mx.events.MoveEvent;
+			import mx.graphics.RadialGradient;
+			import mx.controls.RadioButton;
+			import mx.events.ResizeEvent;
+			import mx.core.UIComponent;	
+			import mx.controls.Image;
+			import events.*;
+			import viewer.*;
+			import mx.managers.PopUpManager;
+			
+			public var bookSuffix:String="swf";
+			public var bookName:String="comm";
+			//public var bookSource:String="http://219.245.107.197/books/comm";
+			//public var host:String="http://219.245.107.197/Timeebo";
+			public var bookSource:String="http://localhost/books/comm";
+			public var host:String="http://localhost/Timeebo";
+			public var book_id:int=1;
+			public var user_id:int=1;
+			[Bindable]
+			public var pageNumber:int;
+			
+			[Bindable]
+			public var max_page:int=11;
+			[Bindable]
+			public var min_page:int=1;
+			
+			[Bindable]
+            private var mark_cm:ContextMenu;
+            private var mark_cmi:ContextMenuItem;
+			[Bindable]
+			private var drawPanel:DrawPanel;
+			[Bindable]
+			private var colors:Array=[
+					{label:"Red",color:"0xFF0000"},
+					{label:"AntiqueWhite",color:"0xFAEBD7"},
+					{label:"Yellow",color:"0xFFFF00"},
+					{label:"Gold",color:"0xFFD700"},
+					{label:"DarkOrange",color:"0xFF8C00"},
+					{label:"OrangeRed",color:"0xFF4500"},
+					{label:"Hot Pink",color:"0xFF66CC"},
+					{label:"Brick Red",color:"0x990000"},
+					{label:"BlueViolet",color:"0x8A2BE2"},
+					{label:"Chartreuse",color:"0x7FFF00"},
+					{label:"LawnGreen",color:"0x7CFC00"},
+					{label:"YellowGreen",color:"0x9ACD32"},
+					{label:"Forest Green",color:"0x006600"},
+					{label:"CadelBlue",color:"0x5F9EA0"},
+					{label:"DarkSlateGray",color:"0x2F4F4F"},
+					{label:"Navy Blue",color:"0x000066"}];
+			
+			internal function init():void
+			{
+				pageNumber=min_page;
+				drawPanel=new DrawPanel(pageNumber,book_id,user_id,host);
+				main.addChild(drawPanel);
+				
+				
+				////
+				
+				var customMenuItem1:ContextMenuItem = new ContextMenuItem("下一页··· ");
+                var customMenuItem2:ContextMenuItem = new ContextMenuItem("上一页··· ");
+                var customMenuItem3:ContextMenuItem = new ContextMenuItem("适应屏宽··· ");
+                var customMenuItem4:ContextMenuItem = new ContextMenuItem("添加书签··· ");
+                var customMenuItem5:ContextMenuItem = new ContextMenuItem("添加评论··· ");   
+                application.contextMenu.hideBuiltInItems();
+                var contextMenuCustomItems:Array = application.contextMenu.customItems;
+   
+                contextMenuCustomItems.push(customMenuItem1);
+                contextMenuCustomItems.push(customMenuItem2);
+                contextMenuCustomItems.push(customMenuItem3);
+                contextMenuCustomItems.push(customMenuItem4);
+                contextMenuCustomItems.push(customMenuItem5);
+                customMenuItem1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,app_menuSelect1);
+                customMenuItem2.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,app_menuSelect2);
+                customMenuItem3.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,app_menuSelect3);
+                customMenuItem4.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,app_menuSelect4);
+				customMenuItem5.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,app_menuSelect5);
+				//application.contextMenu.addEventListener(ContextMenuEvent.MENU_SELECT,app_menu
+				
+				//mark_cmi:ContextMenuItem = new ContextMenuItem("删除");
+				mark_cmi=new ContextMenuItem("删除···");
+                mark_cmi.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, contextMenuItem_menuItemSelect);
+
+                mark_cm = new ContextMenu();
+                mark_cm.hideBuiltInItems();
+                mark_cm.customItems.push(mark_cmi);
+                mark_cm.addEventListener(ContextMenuEvent.MENU_SELECT, contextMenu_menuSelect);
+				//this.verticalScrollPosition=main.maxVerticalScrollPosition;
+				//获取书签
+			    var mark_service:HTTPService=new HTTPService();
+				mark_service.url=host+"/getBookMark.php";
+				mark_service.method="Get";
+				mark_service.resultFormat="e4x";
+				mark_service.showBusyCursor=true;
+				mark_service.addEventListener(ResultEvent.RESULT,resultHandle);
+				mark_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var args:Object=new Object();
+				args["bookId"]=book_id;
+				args["userId"]=user_id;
+				mark_service.send(args);
+				
+				//获取章节目录
+				var dir_service:HTTPService=new HTTPService();
+				dir_service.url=host+"/getContent.php";
+				dir_service.method="Get";
+				dir_service.resultFormat="e4x";
+				dir_service.showBusyCursor=true;
+				dir_service.addEventListener(ResultEvent.RESULT,dirResultHandle);
+				dir_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var dirArgs:Object=new Object();
+				dirArgs["bookId"]=book_id;
+				dir_service.send(dirArgs);
+				
+			
+				this.drawPanel.notes.addEventListener(LoadedEvent.Loaded,onLoaded);
+				this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,1));
+			}
+			
+			private function app_menuSelect1(evt:ContextMenuEvent):void
+			{
+				this.onNextPage();
+			}
+			
+			private function app_menuSelect2(evt:ContextMenuEvent):void
+			{
+				this.onPrevPage();
+			}
+			
+			private function app_menuSelect3(evt:ContextMenuEvent):void
+			{
+				this.onSuitWidth();
+			}
+			
+			private function app_menuSelect4(evt:ContextMenuEvent):void
+			{
+				this.onAddMark();
+			}
+			
+			private function app_menuSelect5(evt:ContextMenuEvent):void
+			{
+				this.onPostComment();
+			}
+			
+			private function contextMenu_menuSelect(evt:ContextMenuEvent):void {
+                mark.selectedIndex = lastRollOverIndex;
+            }
+
+            private function contextMenuItem_menuItemSelect(evt:ContextMenuEvent):void {
+                ////
+                var del_mark_service:HTTPService=new HTTPService();
+				del_mark_service.url=host+"/removeBookMark.php";
+				del_mark_service.method="Get";
+				del_mark_service.resultFormat="e4x";
+				del_mark_service.showBusyCursor=true;
+				//mark_service.addEventListener(ResultEvent.RESULT,resultHandle);
+				del_mark_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var del_args:Object=new Object();
+				del_args["markId"]=mark.selectedItem.markId;
+				del_mark_service.send(del_args);
+                
+                ////
+                delete mark_provider.mark[mark.selectedIndex];
+            }
+			
+			private function commentResultHandle(e:ResultEvent):void
+			{
+				comment_data=XML(e.result);
+			}
+			private function dirResultHandle(e:ResultEvent):void
+			{
+				//ceshi.text=e.result.toString();
+				dir_provider=XML(e.result).content;
+				//ceshi.text=dir_provider.toString();
+			}
+			private function faultHandle(e:FaultEvent):void
+			{
+				Alert.show("网络错误","",Alert.CANCEL,this);
+			}
+			private function resultHandle(e:ResultEvent):void
+			{
+				mark_provider=XML(e.result);
+			}
+			
+			private function onLoaded(e:LoadedEvent):void
+			{
+				while(drawPanel.numChildren)
+				{
+					drawPanel.removeChildAt(0);
+				}
+				drawPanel.load(bookSource+"/"+bookName+e.page+"."+bookSuffix);	
+			}
+			
+  			internal function onNextPage():void
+			{
+				if(pageNumber<max_page)
+				{	
+					pageNumber++;
+					this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,pageNumber));
+				}
+			}
+  			internal function onPrevPage():void
+			{
+				if(pageNumber>min_page)
+				{
+					pageNumber--;
+					this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,pageNumber));
+				}
+			}
+			internal function onZoomChange():void
+			{
+				var percent:Number=bar_zoom.value/100;
+				drawPanel.scaleX=percent;
+				drawPanel.scaleY=percent;
+				///main.scaleX=percent;
+				//main.scaleY=percent;
+			}
+			internal function onPage():void
+			{
+				var newpage:int=int(input_page.text);
+				if(pageNumber!=newpage && newpage>=min_page && newpage<=max_page)
+				{
+					pageNumber=int(input_page.text);
+					this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,pageNumber));
+				}
+			}
+			
+			internal function onColorChange():void
+			{
+				drawPanel.lineColor=color_cp.selectedColor;
+			}
+			internal function onLineThickChange():void
+			{
+				drawPanel.lineThick=line_thick.value;
+			}
+			internal function onLineThickHover():void
+			{
+				//drawPanel.notes="滑动调整页面大小";
+				Alert.show("hover");
+			}
+			private function rb_change(evt:Event):void
+			{
+				var rb:RadioButton=evt.target as RadioButton;
+				if(rb.id=="line")
+				{
+					drawPanel.line_rect=true;
+				
+				}
+				else
+				{
+					drawPanel.line_rect=false;
+			
+				}
+            }
+            private function onDelete():void
+            {
+            	drawPanel.onDelete();
+            }
+       
+            private function onSuitWidth():void
+            {
+            	bar_zoom.value=(mainBoard.width/drawPanel.width)*100;
+            }
+            
+            private function onPostComment():void
+            {
+            	var post:Comment=new Comment();
+            	
+            	post.book_id=this.book_id;
+            	post.user_id=this.user_id;
+            	post.host_url=this.host;
+            	PopUpManager.addPopUp(post,this,false);
+            	PopUpManager.centerPopUp(post);
+            }
+            private function onViewComment():void
+            {
+         
+            	var comment:commentViewer=new commentViewer();
+            	comment.book_id=this.book_id;
+            	comment.user_id=this.user_id;
+            	comment.host_url=this.host;
+            
+            	PopUpManager.addPopUp(comment,this,false);
+            	PopUpManager.centerPopUp(comment);
+            
+            }
+            private function onAddMark():void
+            {
+            	var addMark:AddMark=new AddMark();
+            	addMark.user_id=this.user_id;
+            	addMark.book_id=this.book_id;
+            	addMark.host_url=this.host;
+            	addMark.pageNum=this.pageNumber;
+            	addMark.addEventListener(MarkChangeEvent.MarkChange,onMarkChange);
+            	PopUpManager.addPopUp(addMark,this,false);
+            	PopUpManager.centerPopUp(addMark);
+            }
+            private function onMarkChange(e:MarkChangeEvent):void
+            {
+            	var mark_service:HTTPService=new HTTPService();
+				mark_service.url=host+"/getBookMark.php";
+				mark_service.method="Get";
+				mark_service.resultFormat="e4x";
+				mark_service.showBusyCursor=true;
+				mark_service.addEventListener(ResultEvent.RESULT,resultHandle);
+				mark_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var args:Object=new Object();
+				args["bookId"]=book_id;
+				args["userId"]=user_id;
+				mark_service.send(args);
+            }
+            
+            private function onMarkJump():void
+            {
+            	var newpage:int=int(this.mark.selectedItem.markPageNum);
+				if(pageNumber!=newpage && newpage>=min_page && newpage<=max_page)
+				{
+					pageNumber=newpage;
+					this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,pageNumber));
+				}
+            }
+            
+            private function onDirJump():void
+            {
+            	var newpage:int=int(this.dir.selectedItem.contentPageNum);
+				if(pageNumber!=newpage && newpage>=min_page && newpage<=max_page)
+				{
+					pageNumber=newpage;
+					this.drawPanel.notes.dispatchEvent(new PageChangeEvent(PageChangeEvent.PageChange,pageNumber));
+				}
+            }
+            [Bindable]
+			private var comment_data:XML=new XML();
+			[Bindable]
+			private var dir_provider:XMLList=new XMLList();
+			[Bindable]
+			private var mark_provider:XML=new XML();
+		]]>
+	</mx:Script>
+	<mx:Number id="lastRollOverIndex" />
+	<mx:NumberValidator id="reqValidator" required="true" source="{input_page}" property="text" minValue="{min_page}" maxValue="{max_page}"/>
+	<mx:ApplicationControlBar dock="true"  height="50" x="0" y="0">
+		<mx:Label text="Reader" fontSize="16" fontWeight="bold"/>
+		<mx:Button id="button_prev" label="上一页" click="onPrevPage()" fontSize="12"/>
+		<mx:Button id="button_next" label="下一页" click="onNextPage()" fontSize="12"/>
+		<mx:HSlider id="bar_zoom" width="200" value="100" minimum="80" maximum="200" snapInterval="10" liveDragging="true" change="onZoomChange()" />
+		<mx:TextInput id="input_page" width="50"  text="{pageNumber}" fontSize="12"/>
+		<mx:Button click="onPage()" label="跳转" fontSize="12"/>
+		<mx:Spacer width="37" height="6"/>
+		<mx:ColorPicker id="color_cp" dataProvider="{colors}" showTextField="true" selectedColor="0xFF0000" change="onColorChange()"/>
+		<mx:HSlider  id="line_thick" width="100" value="2" minimum="1" maximum="10" snapInterval="1" liveDragging="true" change="onLineThickChange()" rollOut="onLineThickHover()"/>
+		<mx:VBox verticalGap="1">
+			<mx:RadioButton label="线形标记" fontSize="12" id="line" selected="true" change="rb_change(event)" height="25"/>
+			<mx:RadioButton label="矩形标记" fontSize="12" change="rb_change(event)" height="20"/>
+		</mx:VBox>
+		<mx:Button id="delete_note" label="擦除" fontSize="12" click="onDelete()"/>
+		<mx:Spacer height="6" width="35"/>
+		<mx:Button id="postcomment" label="发布评论" fontSize="12" click="onPostComment()"/>
+		<mx:Button id="viewcomment" label="查看评论" fontSize="12" click="onViewComment()"/>
+		<mx:Button id="addMark" label="添加书签" fontSize="12" click="onAddMark()"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:HDividedBox height="100%" width="100%" paddingTop="5" paddingLeft="5" paddingBottom="3"> 
+	<view:MyBox width="20%" height="100%">
+		<view:MyBox width="100%" height="50%">
+			<mx:Panel title="目录" id="dectory" height="100%" width="100%" layout="vertical" fontSize="12">
+				<mx:DataGrid id="dir" dataProvider="{dir_provider}" height="100%" width="100%" x="50" y="30" borderThickness="0" click="onDirJump()" >
+					<mx:columns>
+						<mx:DataGridColumn headerText="章节" dataField="contentName"/>
+						
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:Panel>
+		</view:MyBox>
+		<view:MyBox width="100%" height="50%">
+			<mx:Panel title="书签" id="marks" height="100%" width="100%" layout="vertical" fontSize="12">
+				<mx:DataGrid id="mark" dataProvider="{mark_provider.mark}" width="100%" height="100%" doubleClickEnabled="true" doubleClick="onMarkJump()" contextMenu="{mark_cm}" borderThickness="0" itemRollOver="lastRollOverIndex = event.rowIndex">
+					<mx:columns>
+						<mx:DataGridColumn headerText="书签" dataField="markName"/>
+						<mx:DataGridColumn headerText="页码" dataField="markPageNum"/>
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:Panel>
+		</view:MyBox>
+	</view:MyBox>
+	
+	<view:MyBox id="mainBoard" width="80%" height="100%">
+		
+	
+	<mx:HBox id="main" width="100%" paddingTop="2" verticalAlign="top" horizontalAlign="center"/>
+	</view:MyBox>
+	
+	</mx:HDividedBox>	
+</mx:Application>

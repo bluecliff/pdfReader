@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" horizontalAlign="center" layout="vertical" paddingTop="5" paddingBottom="10" paddingLeft="10" width="600" creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import mx.containers.Box;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			import mx.rpc.events.ResultEvent;
+			import mx.containers.Canvas;
+			import mx.controls.Button;
+			import mx.containers.HBox;
+			import mx.controls.TextArea;
+			import mx.controls.Label;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.events.CloseEvent;
+			[Bindable]
+			public var host_url:String;
+			public var book_id:int;
+			public var user_id:int;
+			public var comment_list:XMLList=new XMLList();
+			//private var title:String;
+			private var box:HBox=new HBox();
+			private function doDraw():void
+			{
+				var num:int=comment_list.length();
+				for(var i:int=0;i<num;i++)
+				{	
+					var hBox:Canvas=new Canvas();
+					hBox.width=550;
+					var comment_title:Label=new Label();
+					var comment_id:Button=new Button();
+					comment_id.label="删除这条评论";
+					comment_id.x=450;
+					comment_id.addEventListener(MouseEvent.CLICK,onDelete);
+					comment_title.text=comment_list[i].commentTitle;
+					hBox.addChild(comment_title);
+					hBox.addChild(comment_id);
+					this.addChild(hBox);
+					comment_id.id=i.toString();
+					var comment_content:TextArea=new TextArea();
+					comment_content.editable=false;
+					comment_content.width=550;
+					comment_content.text=comment_list[i].commentContent;
+					this.addChild(comment_content);
+				}
+				var bt:Button=new Button();
+				bt.label="关闭";
+				bt.addEventListener(MouseEvent.CLICK,onClose);
+				this.addChild(bt);
+			}
+			private function onClose(e:MouseEvent):void
+			{
+				PopUpManager.removePopUp(this);
+			}
+			private function init():void
+			{
+				this.title="本书评论";
+				///
+				
+				var comment_post_service:HTTPService=new HTTPService();
+				comment_post_service.url=host_url+"/getBookComment.php";
+				comment_post_service.method="Get";
+				comment_post_service.resultFormat="e4x";
+				comment_post_service.showBusyCursor=true;
+				comment_post_service.addEventListener(ResultEvent.RESULT,commentResultHandle);
+				comment_post_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var post_commentArgs:Object=new Object();
+				post_commentArgs["bookId"]=book_id;
+				post_commentArgs["userId"]=user_id;
+				comment_post_service.send(post_commentArgs);
+				
+				////
+				//this.doDraw();
+			}
+			private function commentResultHandle(e:ResultEvent):void
+			{
+				//var comment_data:XML=new XML();
+				//comment_data=XML(e.result);
+				comment_list=XML(e.result).comment;
+				//comment_list=comment_data.comment;
+				if (comment_list.length()<1)
+            	{
+            		Alert.show("本书暂无评论","评论",mx.controls.Alert.OK,this);
+            		PopUpManager.removePopUp(this);
+            		return
+            	}
+				this.doDraw();
+			}
+			private function faultHandle(e:FaultEvent):void
+			{
+				Alert.show("网络错误","",Alert.CANCEL,this);
+				PopUpManager.removePopUp(this);
+			}
+			private function onDelete(e:MouseEvent):void
+			{	
+				var id:int=comment_list[e.currentTarget.id].commentId;
+				delete comment_list[e.currentTarget.id];
+				this.removeAllChildren();
+				this.doDraw();
+				var comment_service:HTTPService=new HTTPService();
+				comment_service.url=host_url+"/removeBookComment.php";
+				comment_service.method="Get";
+				comment_service.resultFormat="e4x";
+				comment_service.showBusyCursor=false;
+				var commentArgs:Object=new Object();
+				commentArgs["commentId"]=id;
+				comment_service.send(commentArgs);
+			}
+		
+		]]>
+	</mx:Script>
+</mx:Panel>

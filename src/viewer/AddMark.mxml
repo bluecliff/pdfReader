@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="560" height="300" title="添加书签">
+	<mx:Script>
+		<![CDATA[
+			import events.MarkChangeEvent;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			import mx.managers.PopUpManager;
+			
+			public var pageNum:int;
+			public var host_url:String;
+			public var user_id:int;
+			public var book_id:int; 
+			private function onOk():void
+			{
+				var mark_service:HTTPService=new HTTPService();
+				mark_service.url=host_url+"/addBookMark.php";
+				mark_service.method="Get";
+				mark_service.resultFormat="e4x";
+				mark_service.showBusyCursor=true;
+				mark_service.addEventListener(ResultEvent.RESULT,resultHandle);
+				mark_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var args:Object=new Object();
+				args["bookId"]=book_id;
+				args["userId"]=user_id;
+				args["markPageNum"]=pageNum;
+				args["markName"]=markTitle.text;
+				mark_service.send(args);
+			}
+			
+			private function resultHandle(e:ResultEvent):void
+			{
+				Alert.show("ok");
+				this.dispatchEvent(new MarkChangeEvent(MarkChangeEvent.MarkChange));
+			}
+			
+			private function faultHandle(e:FaultEvent):void
+			{
+				Alert.show("网络错误");
+			}
+			
+			private function onCancel():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	<mx:Label x="70" y="50" text="标题" width="31" height="22" fontSize="13"/>
+	<mx:TextInput id="markTitle" x="109" y="50" width="313" fontSize="13"/>
+	<mx:Label x="430" y="52" text="（必须）" fontSize="12"/>
+	<mx:Label x="70" y="104" text="描述" fontSize="13"/>
+	<mx:TextArea x="109" id="markConten" y="104" width="313" height="86" fontSize="13"/>
+	<mx:Button x="109" y="214" label="确定" click="onOk()" fontSize="12"/>
+	<mx:Button x="357" y="214" label="取消" click="onCancel()" fontSize="12"/>
+	
+</mx:Panel>

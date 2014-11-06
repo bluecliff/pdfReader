@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" width="600" height="300" title="添加评论">
+	<mx:Metadata>
+		[Event(name="CommentEvent",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.http.mxml.HTTPService;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			public var host_url:String;
+			public var book_id:int;
+			public var user_id:int;
+			
+			private function onPost():void
+			{
+				if(comment_title.text=="" || comment.text=="")
+				{
+					Alert.show("内容和标题不能为空","",Alert.CANCEL,this);
+					return
+				}
+				var comment_service:HTTPService=new HTTPService();
+				comment_service.url=host_url+"/addBookComment.php";
+				comment_service.method="Get";
+				comment_service.resultFormat="e4x";
+				comment_service.showBusyCursor=true;
+				comment_service.addEventListener(ResultEvent.RESULT,commentResultHandle);
+				comment_service.addEventListener(FaultEvent.FAULT,faultHandle);
+				var commentArgs:Object=new Object();
+				commentArgs["bookId"]=book_id;
+				commentArgs["userId"]=user_id;
+				commentArgs["commentTitle"]=comment_title.text;
+				commentArgs["commentContent"]=comment.text;
+				comment_service.send(commentArgs);
+			}
+			private function commentResultHandle(e:ResultEvent):void
+			{
+				Alert.show("添加成功","评论",mx.controls.Alert.OK,this);
+				PopUpManager.removePopUp(this);
+			}
+			private function faultHandle(e:FaultEvent):void
+			{
+				Alert.show("网络错误,评论失败"+e.message,"",mx.controls.Alert.CANCEL,this);
+			}
+			private function onCancell():void
+			{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	<mx:HBox width="100%" height="30%" horizontalAlign="left" verticalAlign="middle">
+		<mx:Label textAlign="center" text="标题:" width="72" fontSize="13"/>
+		<mx:TextInput id="comment_title" width="450" fontSize="13"/>
+	</mx:HBox>
+	<mx:HBox height="135" horizontalAlign="left" width="100%">
+		<mx:Label text="评论：" width="56" textAlign="center" fontSize="13"/>
+		<mx:TextArea id="comment" width="450" height="118" fontSize="13"/>
+	</mx:HBox>
+	<mx:HBox width="100%" height="30" horizontalAlign="center">
+		<mx:Button label="提交" id="submit"  click="onPost()" width="114" fontSize="12"/>
+		<mx:Button label="取消" id="cancell" click="onCancell()"  width="114" fontSize="12"/>
+	</mx:HBox>
+	<mx:StringValidator source="{comment_title}" requiredFieldError="标题不能为空" property="text"/>
+	<mx:StringValidator source="{comment}" requiredFieldError="内容不能为空" property="text"/>
+</mx:Panel>
